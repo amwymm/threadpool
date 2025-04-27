@@ -7,7 +7,7 @@
 #include <thread>
 #include <iostream>
 
-const int TASK_MAX_SIZE = 1024;
+const int TASK_MAX_SIZE = 4;
 
 //线程池构造
 ThreadPool::ThreadPool()
@@ -48,7 +48,7 @@ void ThreadPool::submitTask(std::shared_ptr<Task> task) {
     //     notFull_.wait(lock);
     //}
     //用户提交任务，最长不能阻塞超过1s，否则判断任务提交失败，返回
-    if (notFull_.wait_for(lock,std::chrono::seconds(1),
+    if (!notFull_.wait_for(lock,std::chrono::seconds(1),
         [&]()->bool{return taskQue_.size()<taskQueMaxThreadHold_;})) {
         //表示notFull_等待1s，条件依然没有满足
         std::cerr<<"task queue is full, submit task fail."<<std::endl;
@@ -95,8 +95,13 @@ void ThreadPool::threadFunc() {
         {
             //先获取锁
             std::unique_lock<std::mutex> lock(taskQueMutex_);
+
+            std::cout<<"tid:"<<std::this_thread::get_id()<<"尝试获取任务..."<<std::endl;
             //等待notempty条件
             notEmpty_.wait(lock,[&]()->bool{return taskQue_.size()>0;});
+
+            std::cout<<"tid:"<<std::this_thread::get_id()<<"任务获取成功..."<<std::endl;
+
             //从任务队列中取一个任务出来
             task =taskQue_.front();
             taskQue_.pop();
